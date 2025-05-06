@@ -9,10 +9,11 @@ using namespace std;
 const float INF = numeric_limits<float>::max();
 
 struct State {
-    vector<vector<float>> costMatrix;
-    vector<pair<int, int>> included;
-    vector<pair<int, int>> excluded;
-    float lowerBound;
+    vector<vector<float>> costMatrix; // Матрица стоимостей
+    vector<pair<int, int>> included; // Список включенных ребер
+    vector<pair<int, int>> excluded; // Список исключенных ребер
+    float lowerBound; // Нижняя граница стоимости решения
+    
     
     State(const vector<vector<float>>& matrix, 
           const vector<pair<int, int>>& inc = {}, 
@@ -24,7 +25,7 @@ struct State {
     }
 };
 
-
+// Функция для вывода матрицы стоимостей
 void printMatrix(const vector<vector<float>>& matrix, const string& title) {
     cout << title << ":" << endl;
     for (const auto& row : matrix) {
@@ -39,6 +40,7 @@ void printMatrix(const vector<vector<float>>& matrix, const string& title) {
     cout << endl;
 }
 
+// Алгоритм ближайшего соседа для поиска начального решения
 vector<int> nearestNeighborAlgorithm(const vector<vector<float>>& costMatrix) {
     int n = costMatrix.size();
     int startVertex = 0;
@@ -59,6 +61,7 @@ vector<int> nearestNeighborAlgorithm(const vector<vector<float>>& costMatrix) {
         float minDist = INF;
         int nextVertex = -1;
 
+        // Ищем ближайшую непосещенную вершину
         for (int j = 0; j < n; j++) {
             if (!visited[j] && costMatrix[currentVertex][j] < minDist && costMatrix[currentVertex][j] < INF) {
                 minDist = costMatrix[currentVertex][j];
@@ -78,6 +81,7 @@ vector<int> nearestNeighborAlgorithm(const vector<vector<float>>& costMatrix) {
         visited[currentVertex] = true;
     }
 
+    // Возвращаемся в начальную вершину
     if (costMatrix[currentVertex][startVertex] == INF) {
         cout << "\nНет пути обратно к начальной вершине" << endl;
         return {};
@@ -89,10 +93,12 @@ vector<int> nearestNeighborAlgorithm(const vector<vector<float>>& costMatrix) {
     return path;
 }
 
+// Редукция матрицы
 float reduceMatrix(vector<vector<float>>& matrix) {
     int n = matrix.size();
-    float reduction = 0;
+    float reduction = 0; // нижняя граница
 
+    // Редукция строк
     for (int i = 0; i < n; i++) {
         float minVal = INF;
         for (int j = 0; j < n; j++) {
@@ -101,6 +107,7 @@ float reduceMatrix(vector<vector<float>>& matrix) {
             }
         }
         
+        // Вычитаем минимум из всех элементов строки
         if (minVal > 0 && minVal < INF) {
             for (int j = 0; j < n; j++) {
                 if (matrix[i][j] < INF) {
@@ -111,6 +118,7 @@ float reduceMatrix(vector<vector<float>>& matrix) {
         }
     }
 
+    // Редукция столбцов
     for (int j = 0; j < n; j++) {
         float minVal = INF;
         for (int i = 0; i < n; i++) {
@@ -119,6 +127,7 @@ float reduceMatrix(vector<vector<float>>& matrix) {
             }
         }
         
+        // Вычитаем минимум из всех элементов столбца
         if (minVal > 0 && minVal < INF) {
             for (int i = 0; i < n; i++) {
                 if (matrix[i][j] < INF) {
@@ -132,12 +141,13 @@ float reduceMatrix(vector<vector<float>>& matrix) {
     return reduction;
 }
 
+// Функция для вычисления нижней границы на основе минимального остовного дерева (MST)
 float calculateMSTBound(const vector<vector<float>>& matrix) {
     int n = matrix.size();
 
     if (n <= 2) return 0;
     
-    const int excludedVertex = 0;
+    const int excludedVertex = 0; // Исключаем вершину 0 из MST
 
     vector<bool> visited(n, false);
     vector<float> minEdge(n, INF);
@@ -181,7 +191,8 @@ float calculateMSTBound(const vector<vector<float>>& matrix) {
         if (matrix[excludedVertex][i] < min1) {
             min2 = min1;
             min1 = matrix[excludedVertex][i];
-        } else if (matrix[excludedVertex][i] < min2) {
+        } 
+        else if (matrix[excludedVertex][i] < min2) {
             min2 = matrix[excludedVertex][i];
         }
     }
@@ -192,6 +203,7 @@ float calculateMSTBound(const vector<vector<float>>& matrix) {
     return mstWeight;
 }
 
+// Функция для поиска ребра для ветвления (ребро с максимальной суммой минимальных элементов в строке и столбце)
 pair<int, int> findBranchingEdge(const vector<vector<float>>& matrix) {
     int n = matrix.size();
     float maxCost = -1;
@@ -202,6 +214,7 @@ pair<int, int> findBranchingEdge(const vector<vector<float>>& matrix) {
             if (matrix[i][j] == 0) {
                 float rowMin2 = INF, colMin2 = INF;
                 
+                // Ищем второй минимальный элемент в строке
                 for (int k = 0; k < n; k++) {
                     if (k != j && matrix[i][k] < rowMin2)
                         rowMin2 = matrix[i][k];
@@ -224,6 +237,7 @@ pair<int, int> findBranchingEdge(const vector<vector<float>>& matrix) {
     return edge;
 }
 
+// Функция для поиска пути в графе с помощью DFS
 bool dfs(const vector<vector<int>>& graph, int node, int end, vector<bool>& visited, vector<int>& path) {
     visited[node] = true;
     path.push_back(node);
@@ -242,6 +256,7 @@ bool dfs(const vector<vector<int>>& graph, int node, int end, vector<bool>& visi
     return false;
 }
 
+// Функция для поиска пути между двумя вершинами
 bool findPath(const vector<pair<int, int>>& edges, int start, int end, vector<int>& path, int n) {
     vector<vector<int>> graph(n);
     for (const auto& edge : edges) {
@@ -254,6 +269,7 @@ bool findPath(const vector<pair<int, int>>& edges, int start, int end, vector<in
     return dfs(graph, start, end, visited, path);
 }
 
+// Функция для поиска ребра, которое нужно исключить, чтобы избежать подциклов
 pair<int, int> findEdgeToExclude(const vector<pair<int, int>>& included, int from, int to, int n) {
     vector<int> path;
     if (findPath(included, to, from, path, n)) {
@@ -265,11 +281,13 @@ pair<int, int> findEdgeToExclude(const vector<pair<int, int>>& included, int fro
     return {to, from};
 }
 
+// Алгоритм Литтла для решения задачи коммивояжера
 vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
     int n = costMatrix.size();
     
     cout << "\n--- Выполнение алгоритма Литтла ---" << endl;
     
+    // Запрещаем петли (путь из города в самого себя)
     for (int i = 0; i < n; i++) {
         costMatrix[i][i] = INF;
     }
@@ -277,22 +295,25 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
     cout << "Начальная матрица стоимости:" << endl;
     printMatrix(costMatrix, "Исходная матрица");
     
+    // Выполняем редукцию матрицы
     float matrixReduction = reduceMatrix(costMatrix);
     cout << "Значение редукции матрицы: " << matrixReduction << endl;
     
     printMatrix(costMatrix, "Матрица после редукции");
     
+    // Вычисляем нижнюю границу с использованием MST
     float mstBound = calculateMSTBound(costMatrix);
     
     float startLowerBound = matrixReduction + mstBound;
     cout << "Начальная нижняя граница: " << startLowerBound << endl;
     
+    // Создаем приоритетную очередь для хранения состояний
     priority_queue<State, vector<State>, greater<State>> pq;
     pq.push(State(costMatrix, {}, {}, startLowerBound));
     
     int iterations = 0;
     const int MAX_ITERATIONS_TO_SHOW = 3;
-    
+
     while (!pq.empty()) {
         State current = pq.top();
         pq.pop();
@@ -310,6 +331,7 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
             cout << endl;
         }
         
+        // Если включили все ребра, то нашли решение
         if (current.included.size() == n) {
             cout << "Найдено полное решение!" << endl;
             cout << "Итоговые ребра: ";
@@ -320,6 +342,7 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
             return current.included;
         }
         
+        // Выбираем ребро для ветвления
         pair<int, int> edge = findBranchingEdge(current.costMatrix);
         int i = edge.first, j = edge.second;
         
@@ -337,8 +360,10 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
         
         if (showDetails) cout << "Ветвь 1: Включаем ребро (" << i << "," << j << ")" << endl;
         
+        // Исключаем ребро, которое может образовать подцикл
         pair<int, int> excludeEdge = findEdgeToExclude(current.included, i, j, n);
         
+        // Запрещаем образование подциклов и использование вершины повторно
         for (int k = 0; k < n; k++) {
             includeMatrix[i][k] = INF;
             includeMatrix[k][j] = INF;
@@ -346,6 +371,7 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
         includeMatrix[j][i] = INF;
         includeMatrix[excludeEdge.first][excludeEdge.second] = INF;
         
+        // Вычисляем нижнюю границу для ветви с включенным ребром
         float includeReduction = reduceMatrix(includeMatrix);
         float includeMST = calculateMSTBound(includeMatrix);
         float includeLowerBound = current.lowerBound + includeReduction + includeMST;
@@ -364,6 +390,7 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
         
         if (showDetails) cout << "Ветвь 2: Исключаем ребро (" << i << "," << j << ")" << endl;
         
+        // Вычисляем нижнюю границу для ветви с исключенным ребром
         float excludeReduction = reduceMatrix(excludeMatrix);
         float excludeMST = calculateMSTBound(excludeMatrix);
         float excludeLowerBound = current.lowerBound + excludeReduction + excludeMST;
@@ -384,6 +411,7 @@ vector<pair<int, int>> littleAlgorithm(vector<vector<float>> costMatrix) {
     return {};
 }
 
+// Функция для преобразования списка ребер в путь
 vector<int> edgesToPath(const vector<pair<int, int>>& edges, int n) {
     vector<int> path;
     if (edges.empty()) return path;
@@ -402,6 +430,7 @@ vector<int> edgesToPath(const vector<pair<int, int>>& edges, int n) {
     return path;
 }
 
+// Функция для вычисления общей стоимости пути
 float calculateTotalCost(const vector<int>& path, const vector<vector<float>>& originalCostMatrix) {
     float totalCost = 0;
     int n = path.size();
