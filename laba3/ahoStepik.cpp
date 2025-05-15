@@ -8,19 +8,21 @@
 
 using namespace std;
 
+// Структура узла Trie для автомата Ахо-Корасика
 struct TrieNode {
-    map<char, int> children;
-    int fail;
-    vector<pair<int, int>> output;
-    bool is_terminal;
-    int output_link;
+    map<char, int> children; // Переходы по символам
+    int fail;                // Суффиксная ссылка (failure link)
+    vector<pair<int, int>> output; // Список (индекс подстроки, длина) для терминальных узлов
+    bool is_terminal;        // Является ли узел терминальным (конец подстроки)
+    int output_link;         // Выходная ссылка (output link)
     TrieNode() : fail(0), is_terminal(false), output_link(0) {}
 };
 
-vector<TrieNode> nodes;
-vector<int> fail_depth_memo;
-vector<int> output_depth_memo;
+vector<TrieNode> nodes; // Все узлы Trie
+vector<int> fail_depth_memo;    // Сохранение глубины суффиксных ссылок
+vector<int> output_depth_memo;  // Сохранение глубины выходных ссылок
 
+// Рекурсивно вычисляет глубину суффиксной ссылки для узла
 int get_fail_depth(int node_idx) {
     if (node_idx == 0) return 0;
     if (fail_depth_memo[node_idx] != -1) return fail_depth_memo[node_idx];
@@ -28,6 +30,7 @@ int get_fail_depth(int node_idx) {
     return fail_depth_memo[node_idx];
 }
 
+// Рекурсивно вычисляет глубину выходной ссылки для узла
 int get_output_depth(int node_idx) {
     if (node_idx == 0 || nodes[node_idx].output_link == 0) return 0;
     if (output_depth_memo[node_idx] != -1) return output_depth_memo[node_idx];
@@ -35,6 +38,7 @@ int get_output_depth(int node_idx) {
     return output_depth_memo[node_idx];
 }
 
+// Вычисляет максимальные глубины суффиксных и выходных ссылок во всём Trie
 pair<int, int> calculate_max_depths() {
     int max_fail_depth = 0, max_output_depth = 0;
     int num_nodes = nodes.size();
@@ -50,6 +54,7 @@ pair<int, int> calculate_max_depths() {
     return {max_fail_depth, max_output_depth};
 }
 
+// Разбивает шаблон на подстроки между джокерами, возвращает пары (подстрока, смещение)
 vector<pair<string, int>> split_pattern(const string& pattern, char wildcard) {
     cout << "Разбиение шаблона \"" << pattern << "\" с джокером '" << wildcard << "'\n";
     vector<pair<string, int>> subpatterns_with_offsets;
@@ -79,6 +84,7 @@ vector<pair<string, int>> split_pattern(const string& pattern, char wildcard) {
     return subpatterns_with_offsets;
 }
 
+// Добавляет подстроку в Trie, отмечая терминальный узел и его индекс
 void add_string(const string& subpattern, int subpattern_index) {
     cout << "Добавляю подстроку " << subpattern_index << " (0-based): \"" << subpattern << "\"\n";
     int current_node_idx = 0;
@@ -99,9 +105,11 @@ void add_string(const string& subpattern, int subpattern_index) {
     cout << "Подстрока " << subpattern_index << " завершена в узле " << current_node_idx << "\n\n";
 }
 
+// Строит суффиксные и выходные ссылки для всех узлов Trie (BFS)
 void build_failure_links() {
     cout << "Построение суффиксных и выходных ссылок...\n";
     queue<int> q;
+    // Для детей корня суффиксная и выходная ссылки указывают на корень
     for (const auto& pair : nodes[0].children) {
         int child_node_idx = pair.second;
         q.push(child_node_idx);
@@ -110,6 +118,7 @@ void build_failure_links() {
          cout << "  Узел " << child_node_idx << " (ребенок корня): ссылка на суффикс -> 0" << ", ссылка на выходной -> 0\n";
     }
 
+    // BFS по Trie
     while (!q.empty()) {
         int current_node_idx = q.front();
         q.pop();
@@ -119,6 +128,7 @@ void build_failure_links() {
             int next_node_idx = pair.second;
             q.push(next_node_idx);
 
+            // Ищем суффиксную ссылку для текущего перехода
             int fail_node_idx = nodes[current_node_idx].fail;
             while (fail_node_idx != 0 && nodes[fail_node_idx].children.find(key) == nodes[fail_node_idx].children.end()) {
                 fail_node_idx = nodes[fail_node_idx].fail;
@@ -131,6 +141,7 @@ void build_failure_links() {
                 nodes[next_node_idx].fail = 0;
             }
 
+            // Выходная ссылка: если fail-узел терминальный, иначе копируем его выходную ссылку
             int fn = nodes[next_node_idx].fail;
             if (nodes[fn].is_terminal) {
                 nodes[next_node_idx].output_link = fn;
@@ -144,6 +155,7 @@ void build_failure_links() {
     cout << "Ссылки построены.\n\n";
 }
 
+// Поиск всех вхождений подстрок (без учёта джокеров) в тексте
 vector<pair<int, int>> search_text(const string& text) {
     cout << "Поиск подстрок в тексте: \"" << text << "\"\n";
     vector<pair<int, int>> sub_matches;
@@ -153,17 +165,20 @@ vector<pair<int, int>> search_text(const string& text) {
         char ch = text[i];
         cout << "Текст поз. " << i << " (1-based: " << i+1 << ") символ '" << ch << "', текущий узел = " << current_node_idx;
 
+        // Переход по суффиксным ссылкам, если нет перехода по символу
         while (current_node_idx != 0 && nodes[current_node_idx].children.find(ch) == nodes[current_node_idx].children.end()) {
             current_node_idx = nodes[current_node_idx].fail;
             cout << " --(fail)--> " << current_node_idx;
         }
 
+        // Если есть переход по символу, переходим
         if (nodes[current_node_idx].children.count(ch)) {
             current_node_idx = nodes[current_node_idx].children.at(ch);
             cout << " --'" << ch << "'--> " << current_node_idx;
         }
         cout << "\n";
 
+        // Проверяем терминальные узлы по цепочке fail-ссылок
         int temp_node_idx = current_node_idx;
         while (temp_node_idx != 0) {
             if (nodes[temp_node_idx].is_terminal) {
@@ -196,13 +211,15 @@ int main() {
     cin >> wildcard_char;
     cout << "Символ джокера: '" << wildcard_char << "'\n\n";
 
-    nodes.emplace_back();
+    nodes.emplace_back(); // Корень Trie
 
+    // Разбиваем шаблон на подстроки между джокерами
     vector<pair<string, int>> subpatterns_with_offsets = split_pattern(pattern, wildcard_char);
     int num_subpatterns = subpatterns_with_offsets.size();
     int pattern_len = pattern.length();
     int text_len = text.length();
 
+    // Обработка случая, когда шаблон состоит только из джокеров
     if (num_subpatterns == 0 && pattern_len > 0) {
          bool all_wildcards = true;
          for(char c_pat : pattern) {
@@ -221,39 +238,43 @@ int main() {
             } else {
                 cout << "Шаблон длиннее текста, совпадений нет.\n";
             }
-             // Calculate depths for the trie (which only has root if no patterns added)
-            auto depths_wc = calculate_max_depths(); // Renamed depths to avoid conflict
+             // Выводим глубины для пустого Trie
+            auto depths_wc = calculate_max_depths();
             cout << "\nМаксимальная глубина суффиксных ссылок: " << depths_wc.first << "\n";
             cout << "Максимальная глубина выходных ссылок: " << depths_wc.second << "\n\n";
             return 0;
          }
     }
 
+    // Если нет ни одной подстроки для поиска
     if (num_subpatterns == 0 && !(pattern_len > 0 && all_of(pattern.begin(), pattern.end(), [&](char c_pat){ return c_pat == wildcard_char; }))) {
         cout << "Не найдено непустых подстрок для построения автомата (и это не случай 'все джокеры').\n";
-        auto depths_empty = calculate_max_depths(); // Renamed depths to avoid conflict
+        auto depths_empty = calculate_max_depths();
         cout << "\nМаксимальная глубина суффиксных ссылок: " << depths_empty.first << "\n";
         cout << "Максимальная глубина выходных ссылок: " << depths_empty.second << "\n\n";
-        cout << "Итоговые совпадения (1-based):\n"; // To match expected output format for no matches
+        cout << "Итоговые совпадения (1-based):\n";
         return 0;
     }
 
-
+    // Добавляем все подстроки в Trie
     for (int i = 0; i < num_subpatterns; ++i) {
         if (!subpatterns_with_offsets[i].first.empty()) {
-             add_string(subpatterns_with_offsets[i].first, i); // Pass 0-based index of subpattern
+            add_string(subpatterns_with_offsets[i].first, i);
         }
     }
 
+    // Строим суффиксные и выходные ссылки
     build_failure_links();
 
+    // Выводим максимальные глубины ссылок
     auto depths = calculate_max_depths();
     cout << "Максимальная глубина суффиксных ссылок: " << depths.first << "\n";
     cout << "Максимальная глубина выходных ссылок: " << depths.second << "\n\n";
 
-
+    // Ищем все вхождения подстрок в тексте
     vector<pair<int, int>> sub_matches = search_text(text);
 
+    // Для каждого совпадения подстроки вычисляем потенциальное начало полного шаблона
     map<int, vector<int>> potential_starts;
     cout << "Обработка найденных подстрок для сборки полного шаблона...\n";
     for (const auto& match : sub_matches) {
@@ -265,6 +286,7 @@ int main() {
             << ". Смещение в шаблоне: " << offset_in_pattern
             << ". Потенциальное начало полного шаблона: " << potential_full_start_0_based << "\n";
 
+        // Проверяем, не выходит ли шаблон за границы текста
         if (potential_full_start_0_based >= 0 && potential_full_start_0_based + pattern_len <= text_len) {
             potential_starts[potential_full_start_0_based].push_back(sub_idx_0_based);
             cout << "Добавлено к потенциальным стартам для поз. " << potential_full_start_0_based << "\n";
@@ -275,7 +297,7 @@ int main() {
     }
     cout << "Обработка подстрок завершена.\n\n";
 
-
+    // Проверяем, для каких стартовых позиций найдены все подстроки шаблона
     vector<int> final_match_positions;
     cout << "Проверка потенциальных стартов полного шаблона...\n";
     for (const auto& pair_map_item : potential_starts) {
@@ -291,9 +313,9 @@ int main() {
         for(int idx : unique_indices) cout << idx << " ";
         cout << "(всего " << unique_indices.size() << ")\n";
 
-
+        // Если найдены все подстроки, добавляем позицию в результат
         if (unique_indices.size() == num_subpatterns) {
-            final_match_positions.push_back(full_start_0_based + 1); // Store 1-based position
+            final_match_positions.push_back(full_start_0_based + 1); // 1-based позиция
             cout << "Все " << num_subpatterns << " подстроки найдены! Добавлено совпадение: " << full_start_0_based + 1 << "\n";
         } 
         else {
